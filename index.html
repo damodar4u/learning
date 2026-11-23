@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AAP 2.7 HA Walkthrough Light</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: narrative panel (Reveal.js, left) drives one persistent SVG world (right) whose viewBox is the camera. Single light storybook world: royal blue, gold, rose, teal, violet. */
+:root{
+  --bg:#f4f6ff; --panel:#ffffff; --panel-2:#f3f5ff; --ink:#1b2a6b; --muted:#5b6798; --line:#dfe4f8;
+  --wire:#b4c0ea; --node:#ffffff; --node-stroke:#9daae2;
+  --accent:#2457e6; --gold:#c98a00; --job:#8a4fd8; --repl:#0e9f9f; --ok:#15994a; --warn:#c27c00; --bad:#e0364f; --rose:#e2468c;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--body);display:grid;grid-template-columns:minmax(340px,31%) 1fr;overflow:hidden}
+#panel{display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);min-height:0;position:relative;z-index:2}
+.brand{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:18px 24px 12px;border-bottom:1px solid var(--line);font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.brand b{color:var(--ink);font-weight:500}
+.reveal{position:relative;flex:1;min-height:0;overflow:hidden}
+.reveal .slides{position:absolute!important;inset:0;width:100%!important;height:100%!important;margin:0!important;transform:none!important}
+.reveal .slides>section{position:absolute;inset:0;padding:22px 24px 28px;overflow-y:auto;opacity:0;visibility:hidden;transition:opacity .45s ease,visibility .45s}
+.reveal .slides>section.present{opacity:1;visibility:visible}
+.reveal .fragment{opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .4s,transform .4s,visibility .4s}
+.reveal .fragment.visible{opacity:1;visibility:inherit;transform:none}
+.eyebrow{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:0 0 8px}
+h2{font:600 31px/1.1 var(--display);color:var(--accent);margin:0 0 12px;text-wrap:balance;letter-spacing:-.005em}
+.lead{color:#33427a;margin:0 0 16px;max-width:62ch}
+.facts{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:7px}
+.facts li{display:grid;grid-template-columns:76px 1fr;gap:10px;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;font-size:13.5px;line-height:1.4}
+.facts li b{font:500 12px var(--mono);color:var(--muted);padding-top:1px}
+.note{font-size:13px;color:var(--muted);border-left:2px solid var(--warn);padding:2px 0 2px 10px;margin:0 0 14px}
+.step{border:1px solid var(--line);border-left:3px solid var(--bad);background:var(--panel-2);border-radius:8px;padding:10px 12px;font-size:13.5px;margin:0 0 12px}
+.step .eyebrow{color:var(--bad);margin-bottom:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font:400 11.5px var(--mono);color:var(--muted);margin:4px 0 0}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.sim{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+.btn{font:500 13px var(--body);color:var(--ink);background:var(--panel-2);border:1px solid var(--node-stroke);border-radius:8px;padding:9px 10px;cursor:pointer;text-align:left;transition:border-color .2s,background .2s}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"]{border-color:var(--bad);background:#ffecef}
+.btn:focus-visible,.navbtn:focus-visible,.dot:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn small{display:block;font:400 11px var(--mono);color:var(--muted)}
+.result{min-height:118px;border:1px solid var(--line);border-radius:8px;padding:11px 12px;background:#fbfcff;font-size:13.5px}
+.result h3{font:600 15px var(--body);margin:0 0 4px}
+.result p{margin:0 0 6px;color:#33427a}
+.result .impact{font:500 11.5px var(--mono);color:var(--warn)}
+.restore{margin-top:10px;width:100%;text-align:center}
+nav.deck{display:flex;align-items:center;gap:10px;padding:12px 24px 16px;border-top:1px solid var(--line)}
+.navbtn{font:500 13px var(--body);color:var(--ink);background:transparent;border:1px solid var(--node-stroke);border-radius:8px;padding:7px 12px;cursor:pointer}
+.navbtn:disabled{opacity:.35;cursor:default}
+.navbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.dots{display:flex;gap:6px;flex:1;justify-content:center}
+.dot{width:22px;height:5px;border-radius:3px;background:var(--line);border:0;padding:0;cursor:pointer}
+.dot.on{background:linear-gradient(90deg,var(--accent),var(--rose))}
+#stage{background:linear-gradient(160deg,#eef3ff 0%,#f8f1ff 55%,#fff6ea 100%);position:relative;min-width:0;min-height:0;overflow:hidden}
+#world{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;left:20px;top:16px;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);pointer-events:none}
+.hud b{display:block;font:600 22px var(--display);letter-spacing:0;text-transform:none;color:var(--accent);margin-top:2px}
+.keys{position:absolute;right:18px;bottom:14px;font:400 11px var(--mono);color:var(--muted);pointer-events:none}
+/* SVG world */
+.frame rect{fill:rgba(255,255,255,.55);stroke:#c9d2f2;stroke-dasharray:3 5}
+.flabel{font:500 10.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;fill:var(--muted)}
+.edge{fill:none;stroke:var(--wire);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:stroke .4s}
+.edge.mesh{stroke-dasharray:6 5}
+.edge.bus{stroke-width:2}
+.edge.down{stroke:var(--bad);stroke-dasharray:2 6;stroke-opacity:.7}
+.edge.off{visibility:hidden}
+.node .box{fill:var(--node);stroke:var(--node-stroke);stroke-width:1.4;filter:drop-shadow(0 2px 4px rgba(36,87,230,.10));transition:fill .35s,stroke .35s}
+.node .lbl{font:700 14px var(--body);fill:var(--ink)}
+.node .sub{font:400 10.5px var(--mono);fill:var(--muted)}
+.node .rlabel{font:600 12px var(--mono);fill:var(--ink)}
+.node .dot{fill:var(--ok);transition:fill .3s}
+.node.k-ext .box{fill:transparent;stroke-dasharray:4 4}
+.node.k-vip .box{rx:20}
+.node .capbg{fill:#e8ecfa}.node .cap{fill:var(--job)}
+.node.st-fail .box{fill:#ffe8ec;stroke:var(--bad)}
+.node.st-fail .dot{fill:var(--bad)}
+.node.st-fail .sub{fill:var(--bad)}
+.node.st-warn .box{stroke:var(--warn)}
+.node.st-warn .dot{fill:var(--warn)}
+.node.st-warn .sub{fill:var(--warn)}
+.node.st-promo .box{stroke:var(--ok);filter:url(#glow)}
+.node.st-promo .sub{fill:var(--ok)}
+.failable{cursor:pointer}
+.failable:hover .box{stroke:var(--accent)}
+.pkt.req{fill:var(--accent)}.pkt.job{fill:var(--job)}.pkt.evt{fill:#5aa6ff}.pkt.db{fill:#4338ca}
+.pkt.repl{fill:var(--repl)}.pkt.cache{fill:var(--rose)}.pkt.hc{fill:var(--ok)}.pkt.dead{fill:var(--bad)}
+.ring{fill:none;stroke-width:2}.ring.ok{stroke:var(--ok)}.ring.bad{stroke:var(--bad)}.ring.warn{stroke:var(--warn)}.ring.acc{stroke:var(--accent)}
+.chip rect{fill:#f3ecff;stroke:var(--job);stroke-width:1}
+.chip text{font:500 10px var(--mono);fill:var(--ink)}
+.chip.flash rect{fill:#d9c4ff}
+.pill{fill:var(--job)}
+@media (max-width:820px){
+  body{grid-template-columns:1fr;grid-template-rows:46% 54%}
+  #stage{grid-row:1}#panel{grid-row:2;border-right:0;border-top:1px solid var(--line)}
+  h2{font-size:24px}.hud b{font-size:17px}.keys{display:none}
+  .reveal .slides>section{padding:16px 16px 20px}.brand,nav.deck{padding-left:16px;padding-right:16px}
+}
+</style>
+</head>
+<body>
+<aside id="panel">
+  <div class="brand"><span><b>AAP 2.7</b> · container enterprise topology</span><span>HA walkthrough</span></div>
+  <div class="reveal">
+    <div class="slides">
+
+      <section data-scene="0">
+        <p class="eyebrow">Scene 1 / 8 · Overview</p>
+        <h2>The whole platform, two of almost everything</h2>
+        <p class="lead">Red Hat's tested container enterprise topology for AAP 2.7. Each component runs in Podman containers on its own RHEL VM. An external HAProxy fronts the gateways, and shared state lives outside the services in PostgreSQL and Redis.</p>
+        <ul class="facts">
+          <li><b>2 VMs</b>Platform gateway, behind an externally managed HAProxy</li>
+          <li><b>2 + 2 + 2</b>Automation controller, automation hub, Event-Driven Ansible, all active-active</li>
+          <li><b>1 + 2</b>Hop node and execution nodes form the automation mesh</li>
+          <li><b>6 Redis</b>Cluster mode, colocated on the gateway, hub and EDA VMs</li>
+          <li><b>1 VM</b>Metrics service (single instance in the tested topology)</li>
+          <li><b>External</b>PostgreSQL 15, 16 or 17, customer-provided and managed</li>
+        </ul>
+        <p class="note">The RPM installer is gone in 2.7, so containerized is the RHEL install path. Multiple hubs need shared content storage.</p>
+        <div class="legend"><span><i style="background:var(--accent)"></i>request</span><span><i style="background:var(--job)"></i>job</span><span><i style="background:#4338ca"></i>DB query</span><span><i style="background:var(--repl)"></i>replication</span><span><i style="background:var(--rose)"></i>Redis</span></div>
+      </section>
+
+      <section data-scene="1">
+        <p class="eyebrow">Scene 2 / 8 · Ingress</p>
+        <h2>Any gateway can answer any request</h2>
+        <p class="lead">HAProxy health-checks both gateways and spreads UI and API traffic across the healthy ones. The gateway keeps settings, sessions and JSON web tokens in Redis, not in local memory, so a user can land on either instance.</p>
+        <ul class="facts">
+          <li><b>:443</b>HAProxy to platform gateway</li>
+          <li><b>Envoy</b>The gateway proxies to controller, hub, EDA and metrics over HTTPS (NGINX on 8443, 8444, 8445)</li>
+          <li><b>Scale</b>Add gateway VMs to the inventory and the HAProxy backend pool</li>
+        </ul>
+        <p class="note">HAProxy itself is outside the installer. Make it redundant (a keepalived pair or a cloud load balancer) or it becomes the single point of failure.</p>
+      </section>
+
+      <section data-scene="2">
+        <p class="eyebrow">Scene 3 / 8 · Automation controller</p>
+        <h2>Controllers run active-active</h2>
+        <p class="lead">Every control node serves the API and can schedule work. Scheduling is coordinated through the database, so there's no leader election to fail over. Control nodes hand jobs to execution capacity and record their events.</p>
+        <ul class="facts">
+          <li><b>Task mgr</b>Decides which pending job runs on which instance group</li>
+          <li><b>Dispatcher</b>Runs background tasks, including controlling each job</li>
+          <li><b>Callback</b>Callback receiver writes job events to PostgreSQL</li>
+          <li><b>Receptor</b>Submits work to the mesh on TCP 27199</li>
+        </ul>
+        <p class="note">The capacity bar on each controller is control capacity. Execution capacity sits on the mesh nodes and scales separately.</p>
+      </section>
+
+      <section data-scene="3">
+        <p class="eyebrow">Scene 4 / 8 · Automation mesh</p>
+        <h2>Jobs travel the mesh</h2>
+        <p class="lead">Receptor links controllers to execution nodes over TCP 27199, in both directions. The hop node relays work into a segment the controllers can't reach directly, such as a DMZ. Each job runs in an execution environment container, and its events stream back the same way.</p>
+        <ul class="facts">
+          <li><b>Direct</b>Controller → Execution 1</li>
+          <li><b>Relayed</b>Controller → hop → Execution 2</li>
+          <li><b>Hop</b>Network latency matters more than CPU or RAM on hop nodes</li>
+        </ul>
+        <p class="note">The tested topology has one hop node. Anything that peers only through it loses its route if it fails (try it in scene 7).</p>
+      </section>
+
+      <section data-scene="4">
+        <p class="eyebrow">Scene 5 / 8 · Database</p>
+        <h2>PostgreSQL HA is yours to build</h2>
+        <p class="lead">Gateway, controller, hub, EDA and the metrics service each keep their own database. In the enterprise topology PostgreSQL is externally managed: AAP connects to one endpoint and doesn't run replication or failover itself.</p>
+        <ul class="facts">
+          <li><b>Replicate</b>Streaming replication from primary to standby</li>
+          <li><b>Endpoint</b>One stable VIP or DNS name that follows the primary</li>
+          <li><b>Options</b>Patroni, EDB Postgres, or a managed service such as Azure Database for PostgreSQL with zone-redundant HA</li>
+          <li><b>Locality</b>Keep the database in the same location as the AAP VMs</li>
+        </ul>
+        <div class="step fragment">
+          <p class="eyebrow">Step 2 · primary fails</p>
+          Your HA layer promotes the standby and moves the endpoint. AAP services reconnect. Expect a short API outage, and anything writing during the switch fails.
+        </div>
+      </section>
+
+      <section data-scene="5">
+        <p class="eyebrow">Scene 6 / 8 · Redis</p>
+        <h2>Redis holds sessions and event queues</h2>
+        <p class="lead">Cluster mode needs six Redis nodes, three primaries and three replicas, colocated here on the gateway, hub and EDA VMs. The gateway stores settings, sessions and tokens. EDA uses it for event queues and job launching. Their data is partitioned from each other.</p>
+        <ul class="facts">
+          <li><b>:6379</b>Gateway and EDA to Redis</li>
+          <li><b>:16379</b>Redis cluster bus, node to node</li>
+          <li><b>Placement</b>Any component VM except execution nodes or the database, or dedicated VMs</li>
+        </ul>
+        <p class="note">External Redis isn't supported for containerized AAP. Standalone mode is a single Redis with no automatic failover.</p>
+      </section>
+
+      <section data-scene="6">
+        <p class="eyebrow">Scene 7 / 8 · Failure simulation</p>
+        <h2>Break something</h2>
+        <p class="lead">Take down one component, either here or by clicking it in the diagram. Watch traffic reroute, then read what happens to users and jobs.</p>
+        <div class="sim" role="group" aria-label="Components to fail">
+          <button class="btn" id="f-gw1" data-fail="gw1">Gateway 1<small>ingress</small></button>
+          <button class="btn" id="f-ctrl1" data-fail="ctrl1">Controller 1<small>control plane</small></button>
+          <button class="btn" id="f-exec1" data-fail="exec1">Execution 1<small>mesh</small></button>
+          <button class="btn" id="f-hop" data-fail="hop">Hop node<small>mesh</small></button>
+          <button class="btn" id="f-pga" data-fail="pga">DB primary<small>state</small></button>
+          <button class="btn" id="f-r1" data-fail="r1">Redis primary P1<small>state</small></button>
+        </div>
+        <div class="result" id="simResult" aria-live="polite">
+          <h3>Everything healthy</h3>
+          <p>Normal traffic is flowing. Pick a component to fail.</p>
+        </div>
+        <button class="btn restore" id="restoreBtn" type="button">Restore everything</button>
+      </section>
+
+      <section data-scene="7">
+        <p class="eyebrow">Scene 8 / 8 · Recovery</p>
+        <h2>Recover, rejoin, zoom out</h2>
+        <p class="lead" id="recLead">The failed component comes back, passes its health checks and rejoins. Some roles don't swap back: an old database primary returns as the standby, and an old Redis primary returns as a replica.</p>
+        <ul class="facts">
+          <li><b>Ingress</b>Redundant HAProxy pair in front of two or more gateways</li>
+          <li><b>Mesh</b>Two hop nodes per network segment you route into</li>
+          <li><b>Database</b>Tested failover behind one stable endpoint</li>
+          <li><b>Redis</b>Cluster mode across six nodes</li>
+          <li><b>Hub</b>Shared storage for content across hub nodes</li>
+          <li><b>Drill</b>Rehearse each failure above in a non-production stack</li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+  <nav class="deck" aria-label="Scenes">
+    <button class="navbtn" id="prev" type="button">Back</button>
+    <div class="dots" id="dots"></div>
+    <button class="navbtn primary" id="next" type="button">Next</button>
+  </nav>
+</aside>
+
+<main id="stage">
+  <svg id="world" viewBox="15 45 1400 830" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Ansible Automation Platform 2.7 high availability architecture">
+    <defs>
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#dde4fb" stroke-width="1"/></pattern>
+      <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect x="-800" y="-600" width="3200" height="2100" fill="url(#grid)"/>
+    <g id="gFrames"></g><g id="gEdges"></g><g id="gNodes"></g><g id="gExplode"></g><g id="gPk"></g><g id="gFx"></g>
+  </svg>
+  <div class="hud"><span id="hudNo">Scene 1</span><b id="hudTitle">Complete HA architecture</b></div>
+  <div class="keys">← → or space to step</div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+(function(){
+const NS='http://www.w3.org/2000/svg';
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const D = s => reduce ? 0 : s;
+const $ = id => document.getElementById(id);
+function mk(tag,attrs,parent){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(parent)parent.appendChild(e);return e;}
+const gFrames=$('gFrames'),gEdges=$('gEdges'),gNodes=$('gNodes'),gExplode=$('gExplode'),gPk=$('gPk'),gFx=$('gFx'),svg=$('world');
+
+/* ---------- world model ---------- */
+const FRAMES=[
+  {id:'f-gw',x:335,y:320,w:190,h:270,label:'Platform gateway'},
+  {id:'f-ctrl',x:620,y:112,w:200,h:190,label:'Automation controller'},
+  {id:'f-hub',x:620,y:377,w:200,h:180,label:'Automation hub'},
+  {id:'f-eda',x:620,y:642,w:200,h:180,label:'Event-Driven Ansible'},
+  {id:'f-mesh',x:995,y:85,w:410,h:225,label:'Automation mesh · receptor :27199'},
+  {id:'f-redis',x:340,y:690,w:230,h:170,label:'Redis cluster · 3P + 3R'},
+  {id:'f-db',x:965,y:585,w:430,h:205,label:'External PostgreSQL · customer-managed'}
+];
+const NODES=[
+  {id:'client',x:80,y:455,w:120,h:60,label:'Users & API',sub:'UI · CI · CLI',kind:'ext'},
+  {id:'lb',x:240,y:455,w:140,h:70,label:'HAProxy',sub:'external LB :443',kind:'lb'},
+  {id:'gw1',x:430,y:375,w:170,h:62,label:'Gateway 1',sub:'envoy · podman'},
+  {id:'gw2',x:430,y:535,w:170,h:62,label:'Gateway 2',sub:'envoy · podman'},
+  {id:'ctrl1',x:720,y:162,w:180,h:62,label:'Controller 1',sub:'control node',cap:true},
+  {id:'ctrl2',x:720,y:252,w:180,h:62,label:'Controller 2',sub:'control node',cap:true},
+  {id:'hub1',x:720,y:427,w:180,h:58,label:'Hub 1',sub:'collections · EEs'},
+  {id:'hub2',x:720,y:512,w:180,h:58,label:'Hub 2',sub:'collections · EEs'},
+  {id:'eda1',x:720,y:692,w:180,h:58,label:'EDA 1',sub:'rulebook activations'},
+  {id:'eda2',x:720,y:777,w:180,h:58,label:'EDA 2',sub:'rulebook activations'},
+  {id:'met',x:965,y:375,w:140,h:50,label:'Metrics service',sub:'1 VM'},
+  {id:'nfs',x:965,y:470,w:140,h:50,label:'Shared storage',sub:'hub content',kind:'store'},
+  {id:'hop',x:1075,y:250,w:130,h:56,label:'Hop node',sub:'receptor relay'},
+  {id:'exec1',x:1310,y:140,w:150,h:56,label:'Execution 1',sub:'EE · podman'},
+  {id:'exec2',x:1310,y:250,w:150,h:56,label:'Execution 2',sub:'via hop'},
+  {id:'vip',x:1190,y:625,w:220,h:40,label:'db endpoint',sub:'VIP / DNS',kind:'vip'},
+  {id:'pga',x:1065,y:732,w:170,h:66,label:'PostgreSQL A',sub:'primary',kind:'db'},
+  {id:'pgb',x:1315,y:732,w:170,h:66,label:'PostgreSQL B',sub:'standby',kind:'db'},
+  {id:'r1',x:385,y:740,r:23,label:'P1'},{id:'r2',x:455,y:740,r:23,label:'P2'},{id:'r3',x:525,y:740,r:23,label:'P3'},
+  {id:'r4',x:385,y:815,r:23,label:'R1'},{id:'r5',x:455,y:815,r:23,label:'R2'},{id:'r6',x:525,y:815,r:23,label:'R3'}
+];
+const N={};
+FRAMES.forEach(f=>{N[f.id]={...f,x:f.x+f.w/2,y:f.y+f.h/2,frame:true,x0:f.x,y0:f.y};});
+NODES.forEach(n=>{N[n.id]=n;n.sub0=n.sub;n.label0=n.label;if(n.r){n.w=n.h=n.r*2;}});
+
+function anchor(id,a){const b=N[id];return a==='l'?[b.x-b.w/2,b.y]:a==='r'?[b.x+b.w/2,b.y]:a==='t'?[b.x,b.y-b.h/2]:[b.x,b.y+b.h/2];}
+function curve(p,q,a){
+  if(a==='l'||a==='r'){const dx=(q[0]-p[0])/2;return `M${p} C${p[0]+dx},${p[1]} ${q[0]-dx},${q[1]} ${q}`;}
+  const dy=(q[1]-p[1])/2;return `M${p} C${p[0]},${p[1]+dy} ${q[0]},${q[1]-dy} ${q}`;
+}
+const EDGES=[
+  ['e-cl-lb','client','r','lb','l'],
+  ['e-lb-gw1','lb','r','gw1','l'],['e-lb-gw2','lb','r','gw2','l'],
+  ['e-gw1-ctrl','gw1','r','f-ctrl','l'],['e-gw2-ctrl','gw2','r','f-ctrl','l'],
+  ['e-gw1-hub','gw1','r','f-hub','l'],['e-gw2-hub','gw2','r','f-hub','l'],
+  ['e-gw1-eda','gw1','r','f-eda','l'],['e-gw2-eda','gw2','r','f-eda','l'],
+  ['e-ctrl1-exec1','ctrl1','r','exec1','l','mesh'],
+  ['e-ctrl2-exec1','ctrl2','exec1','M810,252 C880,252 880,95 960,95 L1195,95 C1220,95 1215,140 1235,140','mesh'],
+  ['e-ctrl1-hop','ctrl1','r','hop','l','mesh'],['e-ctrl2-hop','ctrl2','r','hop','l','mesh'],
+  ['e-hop-exec2','hop','r','exec2','l','mesh'],
+  ['e-hub-nfs','f-hub','r','nfs','l'],
+  ['e-ctrl-db','f-ctrl','vip','M820,207 L860,207 L860,625 L1080,625','bus'],
+  ['e-hub-db','f-hub','vip','M820,532 L860,532 L860,625 L1080,625','bus'],
+  ['e-eda-db','f-eda','vip','M820,732 L860,732 L860,625 L1080,625','bus'],
+  ['e-met-db','met','vip','M895,375 L860,375 L860,625 L1080,625','bus'],
+  ['e-vip-pga','vip','b','pga','t'],['e-vip-pgb','vip','b','pgb','t'],
+  ['e-repl','pga','r','pgb','l'],
+  ['e-gw-redis','f-gw','b','f-redis','t'],['e-eda-redis','f-eda','l','f-redis','r'],
+  ['e-rbus','r1','r6','M385,740 L455,740 L525,740 L525,815 L455,815 L385,815 Z'],
+  ['e-rr1','r1','b','r4','t'],['e-rr2','r2','b','r5','t'],['e-rr3','r3','b','r6','t']
+];
+const E={};
+
+/* ---------- draw ---------- */
+FRAMES.forEach(f=>{
+  const g=mk('g',{class:'frame',id:f.id},gFrames);
+  N[f.id].rect=mk('rect',{x:f.x,y:f.y,width:f.w,height:f.h,rx:14},g);
+  mk('text',{class:'flabel',x:f.x+2,y:f.y-9},g).textContent=f.label;
+  N[f.id].el=g;
+});
+EDGES.forEach(e=>{
+  let id=e[0],from=e[1],d,to,cls='';
+  if(e[3]&&e[3].startsWith('M')){to=e[2];d=e[3];cls=e[4]||'';}
+  else{to=e[3];d=curve(anchor(from,e[2]),anchor(to,e[4]),e[2]);cls=e[5]||'';}
+  const p=mk('path',{id,d,class:'edge '+cls},gEdges);
+  E[id]={el:p,from,to,len:p.getTotalLength()};
+});
+NODES.forEach(n=>{
+  const g=mk('g',{id:'n-'+n.id,class:'node k-'+(n.kind||'svc'),'data-id':n.id},gNodes);
+  if(n.r){
+    mk('circle',{class:'box',cx:n.x,cy:n.y,r:n.r},g);
+    n.labelEl=mk('text',{class:'rlabel',x:n.x,y:n.y+4,'text-anchor':'middle'},g);n.labelEl.textContent=n.label;
+  }else{
+    const x0=n.x-n.w/2,y0=n.y-n.h/2;
+    mk('rect',{class:'box',x:x0,y:y0,width:n.w,height:n.h,rx:n.kind==='vip'?20:8},g);
+    const t=mk('text',{class:'lbl',x:x0+14,y:n.y-3},g);t.textContent=n.label;n.labelEl=t;
+    n.subEl=mk('text',{class:'sub',x:x0+14,y:n.y+13},g);n.subEl.textContent=n.sub;
+    if(n.kind!=='ext')mk('circle',{class:'dot',cx:x0+n.w-12,cy:y0+12,r:4.5},g);
+    if(n.cap){mk('rect',{class:'capbg',x:x0+14,y:y0+n.h-10,width:n.w-28,height:4,rx:2},g);n.capEl=mk('rect',{class:'cap',x:x0+14,y:y0+n.h-10,width:0,height:4,rx:2},g);n.cap=0;}
+  }
+  n.el=g;
+});
+/* exploded controller internals */
+const CHIPS=['Task manager','Dispatcher','Callback rcvr','Receptor'];
+const chipEls={ctrl1:[],ctrl2:[]};
+['ctrl1','ctrl2'].forEach(c=>{
+  const n=N[c];
+  CHIPS.forEach((t,i)=>{
+    const hx=878+(i%2)*86,hy=n.y-14+Math.floor(i/2)*28;
+    const g=mk('g',{class:'chip'},gExplode);
+    mk('rect',{x:hx-40,y:hy-11,width:80,height:22,rx:5},g);
+    mk('text',{x:hx,y:hy+3.5,'text-anchor':'middle'},g).textContent=t;
+    g.dataset.dx=n.x-hx;g.dataset.dy=n.y-hy;
+    chipEls[c].push(g);
+  });
+});
+gsap.set(gExplode,{opacity:0});
+
+/* ---------- runtime state ---------- */
+let tl=gsap.timeline(),live=[],S;
+function freshState(){return{down:new Set(),primary:'pga',redisP1:'r1',failed:null};}
+S=freshState();
+const up=id=>!S.down.has(id);
+const allFocusable=()=>[...gNodes.children,...gEdges.children,...gFrames.children];
+
+function clearLive(){live.forEach(t=>t.kill());live=[];gPk.innerHTML='';gFx.innerHTML='';}
+function track(t){live.push(t);t.eventCallback('onComplete',()=>{const i=live.indexOf(t);if(i>-1)live.splice(i,1);});return t;}
+function setState(id,st){const g=N[id].el;g.classList.remove('st-fail','st-warn','st-promo');if(st)g.classList.add('st-'+st);}
+function setSub(id,t){if(N[id].subEl)N[id].subEl.textContent=t;}
+function setLabel(id,t){N[id].labelEl.textContent=t;}
+function edges(ids,cls){ids.forEach(e=>{const el=E[e].el;el.classList.remove('down','off');if(cls)el.classList.add(cls);});}
+function reset(){
+  S=freshState();
+  NODES.forEach(n=>{setState(n.id,null);if(n.subEl)n.subEl.textContent=n.sub0;n.labelEl.textContent=n.label0;if(n.capEl){n.cap=0;n.capEl.setAttribute('width',0);}n.el.classList.remove('failable');});
+  Object.keys(E).forEach(k=>E[k].el.classList.remove('down','off'));
+  E['e-vip-pgb'].el.classList.add('off');
+  gsap.set(allFocusable(),{opacity:1,scale:1,clearProps:'strokeDasharray,strokeDashoffset'});
+  gsap.set(gExplode,{opacity:0});
+  N['f-ctrl'].rect.setAttribute('width',200);
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('flash'));
+}
+
+/* ---------- motion helpers ---------- */
+function along(c,eid,rev){
+  const e=E[eid],o={t:0};
+  return gsap.to(o,{t:1,duration:Math.max(.25,e.len/280),ease:'none',
+    onStart(){c.style.opacity=1;},
+    onUpdate(){const pt=e.el.getPointAtLength((rev?1-o.t:o.t)*e.len);c.setAttribute('cx',pt.x);c.setAttribute('cy',pt.y);}});
+}
+function trip(route,cls,opt={}){
+  if(reduce)return;
+  const c=mk('circle',{r:opt.r||4,class:'pkt '+cls,cx:-99,cy:-99},gPk);c.style.opacity=0;
+  const t=gsap.timeline({onComplete(){c.remove();opt.onArrive&&opt.onArrive();}});
+  route.forEach(([e,rev])=>t.add(along(c,e,!!rev)));
+  return track(t);
+}
+function every(sec,fn,delay=0){
+  if(reduce)return;
+  const t=gsap.timeline({repeat:-1,delay});t.call(fn).to({},{duration:sec});live.push(t);
+}
+function ring(id,cls='ok',n=1,gap=.45){
+  if(reduce)return;
+  const b=N[id],r0=Math.max(b.w,b.h)/2;
+  for(let i=0;i<n;i++){
+    const c=mk('circle',{cx:b.x,cy:b.y,r:r0,class:'ring '+cls},gFx);
+    track(gsap.fromTo(c,{attr:{r:r0*.9},opacity:.9},{attr:{r:r0+34},opacity:0,duration:1.1,delay:i*gap,ease:'power2.out',onComplete:()=>c.remove()}));
+  }
+}
+function drawIn(ids,dur=.9,stagger=.04,at){
+  const els=ids.map(i=>E[i].el);
+  els.forEach(el=>{const L=el.getTotalLength();gsap.set(el,{strokeDasharray:L,strokeDashoffset:L});});
+  tl.to(els,{strokeDashoffset:0,duration:D(dur),stagger:D(stagger),ease:'power2.inOut',onComplete(){gsap.set(els,{clearProps:'strokeDasharray,strokeDashoffset'});}},at);
+}
+function camera(vb,dur=1.6){tl.to(svg,{attr:{viewBox:vb},duration:D(dur),ease:'power3.inOut'},0);}
+function focus(ids){
+  const set=new Set(ids);
+  const keep=el=>{
+    if(el.id&&E[el.id])return set.has(el.id)||(set.has(E[el.id].from)&&set.has(E[el.id].to));
+    const id=el.dataset&&el.dataset.id?el.dataset.id:el.id;return set.has(id);
+  };
+  tl.to(allFocusable(),{opacity:(i,el)=>keep(el)?1:.1,duration:D(.8)},0);
+}
+const CAM={
+  full:'15 45 1400 830',ingress:'10 255 640 400',ctrl:'560 70 720 360',mesh:'600 50 860 330',
+  db:'590 545 860 300',redis:'290 290 580 590'
+};
+function nodeCam(id){const b=N[id];return `${b.x-320} ${b.y-180} 640 360`;}
+
+/* ---------- traffic ---------- */
+let rr=0,jr=0;
+function jobRoutes(){
+  const r=[];
+  ['ctrl1','ctrl2'].filter(up).forEach(c=>{
+    if(up('exec1'))r.push({to:'exec1',path:[['e-'+c+'-exec1']]});
+    if(up('hop')&&up('exec2'))r.push({to:'exec2',path:[['e-'+c+'-hop'],['e-hop-exec2']]});
+  });
+  return r;
+}
+function sendJob(withEvents){
+  const rs=jobRoutes();if(!rs.length)return;
+  const r=rs[jr++%rs.length];
+  trip(r.path,'job',{onArrive(){ring(r.to,'acc');if(withEvents){const back=r.path.slice().reverse().map(([e,rv])=>[e,!rv]);trip(back,'evt',{r:2.6});}}});
+}
+function fullTraffic(){
+  every(.55,()=>{
+    const gws=['gw1','gw2'].filter(up);if(!gws.length)return;
+    const g=gws[rr++%gws.length],svc=['ctrl','hub','eda'][rr%3];
+    trip([['e-cl-lb'],['e-lb-'+g],['e-'+g+'-'+svc]],'req');
+  });
+  every(1.1,()=>sendJob(false),.3);
+  every(.8,()=>{const src=['e-ctrl-db','e-hub-db','e-eda-db','e-met-db'][Math.floor(Math.random()*4)];if(up(S.primary))trip([[src],['e-vip-'+S.primary]],'db',{r:3.2});},.2);
+  every(.35,()=>{if(up('pga')&&up('pgb'))trip([['e-repl',S.primary==='pgb']],'repl',{r:2.4});});
+  every(1.3,()=>trip([['e-gw-redis']],'cache',{r:3}),.5);
+  every(1.5,()=>trip([['e-eda-redis']],'cache',{r:3}),.9);
+}
+
+/* ---------- failures ---------- */
+const FAIL={
+  gw1:{title:'Gateway 1 is down',impact:'Impact: in-flight requests only',
+    text:'HAProxy’s health check fails and Gateway 2 takes all traffic. Sessions and tokens live in Redis, so signed-in users stay signed in.',
+    edges:['e-lb-gw1','e-gw1-ctrl','e-gw1-hub','e-gw1-eda']},
+  ctrl1:{title:'Controller 1 is down',impact:'Impact: jobs it was controlling fail',
+    text:'Controller 2 keeps serving the API and scheduling. Jobs that Controller 1 was managing are reaped and marked failed by a healthy node; relaunch them. New jobs go to remaining capacity.',
+    edges:['e-ctrl1-exec1','e-ctrl1-hop']},
+  exec1:{title:'Execution 1 is down',impact:'Impact: jobs running on it fail',
+    text:'Jobs running on Execution 1 fail with it. The instance group keeps sending new work to Execution 2. When the node returns, it reports capacity again.',
+    edges:['e-ctrl1-exec1','e-ctrl2-exec1']},
+  hop:{title:'Hop node is down',impact:'Impact: Execution 2 drops out of capacity',
+    text:'Execution 2 only peers through this hop, so it becomes unreachable. With one hop per segment, the hop is a single point of failure. Peer remote execution nodes to two hops.',
+    edges:['e-ctrl1-hop','e-ctrl2-hop','e-hop-exec2']},
+  pga:{title:'PostgreSQL primary is down',impact:'Impact: short API outage, failed writes',
+    text:'AAP doesn’t fail the database over. Your HA layer promotes PostgreSQL B and moves the endpoint; gateway, controller, hub, EDA and metrics reconnect.',
+    edges:['e-vip-pga','e-repl']},
+  r1:{title:'Redis primary P1 is down',impact:'Impact: none expected in cluster mode',
+    text:'Redis Cluster promotes P1’s replica. Gateway sessions and EDA queues keep working. In standalone mode, losing Redis would take the gateway’s session store with it.',
+    edges:['e-rr1']}
+};
+function applyFail(id,animate=true){
+  S.failed=id;S.down.add(id);
+  setState(id,'fail');setSub(id,'down');edges(FAIL[id].edges,'down');
+  if(animate)ring(id,'bad',2);
+  if(id==='hop'){setState('exec2','warn');setSub('exec2','unreachable');}
+  if(id==='ctrl1'||id==='exec1'){
+    if(animate&&!reduce){const b=N[id];const c=mk('circle',{cx:b.x+b.w/2-24,cy:b.y,r:5,class:'pkt dead'},gPk);track(gsap.to(c,{attr:{r:14},opacity:0,duration:1.4,delay:.2,onComplete:()=>c.remove()}));}
+  }
+  if(id==='ctrl1'&&N.ctrl2.capEl){gsap.to(N.ctrl2.capEl,{attr:{width:(N.ctrl2.w-28)*.82},duration:D(1)});}
+  if(id==='pga'){
+    const t=gsap.timeline();
+    t.call(()=>{setState('pgb','warn');setSub('pgb','promoting…');},null,animate?D(.7):0)
+     .call(()=>{S.primary='pgb';setState('pgb','promo');setSub('pgb','primary · promoted');edges(['e-vip-pgb'],null);ring('pgb','ok',2);},null,animate?D(1.9):0);
+    track(t);
+  }
+  if(id==='r1'){
+    const t=gsap.timeline();
+    t.call(()=>{S.redisP1='r4';setLabel('r4','P1');setState('r4','promo');ring('r4','ok',2);},null,animate?D(1):0);
+    track(t);
+  }
+}
+
+/* ---------- scenes ---------- */
+const TITLES=['Complete HA architecture','Load balancer and gateway HA','Automation controller HA','Automation mesh','Database HA','Redis and messaging','Failure simulation','Recovery and full architecture'];
+let current=-1,carried=null;
+
+function render(scene,step){
+  const prev=current;
+  carried=(scene===7&&prev===6)?S.failed:null;
+  tl.kill();clearLive();reset();
+  tl=gsap.timeline();
+  current=scene;
+  $('hudNo').textContent='Scene '+(scene+1)+' / 8';$('hudTitle').textContent=TITLES[scene];
+  SCENES[scene](step);
+  updateNav();
+}
+const SCENES=[
+  /* 1 overview */ function(){
+    camera(CAM.full,1.8);
+    const tiers=[['client','lb'],['f-gw','gw1','gw2'],['f-ctrl','ctrl1','ctrl2','f-hub','hub1','hub2','f-eda','eda1','eda2'],['met','nfs'],['f-mesh','hop','exec1','exec2'],['f-redis','r1','r2','r3','r4','r5','r6'],['f-db','vip','pga','pgb']];
+    tiers.forEach((ids,i)=>{tl.from(ids.map(id=>N[id].el),{opacity:0,scale:.92,transformOrigin:'50% 50%',duration:D(.55),stagger:D(.05),ease:'power2.out'},D(.25+i*.28));});
+    drawIn(Object.keys(E),1,.025,D(1.2));
+    tl.call(fullTraffic,null,D(2.4));
+  },
+  /* 2 ingress */ function(){
+    camera(CAM.ingress);
+    focus(['client','lb','gw1','gw2','f-gw']);
+    let k=0;
+    tl.call(()=>{
+      every(.42,()=>{const g=['gw1','gw2'][k++%2];trip([['e-cl-lb'],['e-lb-'+g]],'req',{onArrive(){ring(g,'acc');}});});
+      every(2.2,()=>{['gw1','gw2'].forEach(g=>trip([['e-lb-'+g]],'hc',{r:3,onArrive(){ring(g,'ok');}}));},.6);
+    },null,D(1.4));
+  },
+  /* 3 controller */ function(){
+    camera(CAM.ctrl);
+    focus(['f-ctrl','ctrl1','ctrl2']);
+    tl.to(N['f-ctrl'].rect,{attr:{width:385},duration:D(.9),ease:'power3.inOut'},D(1));
+    tl.set(gExplode,{opacity:1},D(1.2));
+    ['ctrl1','ctrl2'].forEach((c,ci)=>{
+      tl.fromTo(chipEls[c],{x:(i,el)=>+el.dataset.dx,y:(i,el)=>+el.dataset.dy,opacity:0,scale:.3,transformOrigin:'50% 50%'},
+        {x:0,y:0,opacity:1,scale:1,duration:D(.8),stagger:D(.08),ease:'back.out(1.6)'},D(1.3+ci*.15));
+    });
+    let k=0;
+    tl.call(()=>{
+      every(.9,()=>{
+        if(reduce)return;
+        const c=['ctrl1','ctrl2'][k++%2],n=N[c];
+        const p=mk('rect',{class:'pill',x:548,y:n.y-6,width:24,height:12,rx:6},gPk);
+        track(gsap.timeline({onComplete(){p.remove();}})
+          .fromTo(p,{opacity:0},{opacity:1,duration:.15})
+          .to(p,{attr:{x:n.x-n.w/2+6},duration:.7,ease:'power2.in'},0)
+          .to(p,{opacity:0,duration:.15})
+          .call(()=>{
+            chipEls[c].slice(0,2).forEach((ch,i)=>{gsap.delayedCall(i*.25,()=>{ch.classList.add('flash');gsap.delayedCall(.35,()=>ch.classList.remove('flash'));});});
+            n.cap=n.cap>=.85?.3:n.cap+.11;gsap.to(n.capEl,{attr:{width:(n.w-28)*n.cap},duration:.5});
+          }));
+      });
+    },null,D(2.3));
+  },
+  /* 4 mesh */ function(){
+    camera(CAM.mesh);
+    const meshE=['e-ctrl1-exec1','e-ctrl2-exec1','e-ctrl1-hop','e-ctrl2-hop','e-hop-exec2'];
+    focus(['f-ctrl','ctrl1','ctrl2','f-mesh','hop','exec1','exec2',...meshE]);
+    drawIn(meshE,1.1,.15,D(1.1));
+    tl.call(()=>every(.8,()=>sendJob(true)),null,D(2.2));
+  },
+  /* 5 database */ function(step){
+    camera(CAM.db);
+    focus(['f-db','vip','pga','pgb','e-ctrl-db','e-hub-db','e-eda-db','e-met-db','f-eda','eda1','eda2']);
+    const dbFlow=()=>{
+      every(.45,()=>{const src=['e-ctrl-db','e-hub-db','e-eda-db','e-met-db'][Math.floor(Math.random()*4)];if(up(S.primary))trip([[src],['e-vip-'+S.primary]],'db',{r:3.4});});
+      every(.22,()=>{if(up('pga')&&up('pgb'))trip([['e-repl',S.primary==='pgb']],'repl',{r:2.4});});
+    };
+    if(!step){tl.call(dbFlow,null,D(1.3));return;}
+    tl.call(()=>{dbFlow();},null,D(.2));
+    tl.call(()=>applyFail('pga',true),null,D(1.4));
+  },
+  /* 6 redis */ function(){
+    camera(CAM.redis);
+    const rE=['e-gw-redis','e-eda-redis','e-rbus','e-rr1','e-rr2','e-rr3'];
+    focus(['f-gw','gw1','gw2','f-redis','r1','r2','r3','r4','r5','r6','f-eda','eda1','eda2',...rE]);
+    tl.to(rE.map(e=>E[e].el),{strokeWidth:3.2,stroke:'#e2468c',duration:D(.7),repeat:reduce?0:5,yoyo:true,ease:'sine.inOut'},D(1.2));
+    tl.call(()=>{
+      every(.7,()=>trip([['e-gw-redis']],'cache',{r:3.2,onArrive(){ring(['r1','r2','r3'][Math.floor(Math.random()*3)],'acc');}}));
+      every(.9,()=>trip([['e-eda-redis']],'cache',{r:3.2,onArrive(){ring(['r1','r2','r3'][Math.floor(Math.random()*3)],'acc');}}),.3);
+      every(1.6,()=>trip([['e-rbus']],'cache',{r:2.6}));
+      every(.6,()=>{['e-rr1','e-rr2','e-rr3'].forEach(e=>trip([[e]],'repl',{r:2.2}));});
+      let k=0;every(.8,()=>{const id=['r1','r2','r3'][k++%3];setState(id,'promo');gsap.delayedCall(.6,()=>{if(current===5)setState(id,null);});});
+    },null,D(1.4));
+  },
+  /* 7 failure sim */ function(){
+    camera(CAM.full);
+    Object.keys(FAIL).forEach(id=>N[id].el.classList.add('failable'));
+    tl.call(fullTraffic,null,D(.8));
+    showResult(null);
+  },
+  /* 8 recovery */ function(){
+    const id=carried||'gw1';
+    applyFail(id,false);
+    // finish role changes instantly when carried in
+    if(id==='pga'){S.primary='pgb';setState('pgb','promo');setSub('pgb','primary · promoted');edges(['e-vip-pgb'],null);}
+    if(id==='r1'){S.redisP1='r4';setLabel('r4','P1');setState('r4','promo');}
+    $('recLead').textContent=(carried?'Recovering '+label(id)+'. ':'Demo: recovering Gateway 1. ')+'It comes back, passes its health checks and rejoins. Some roles don’t swap back: an old database primary returns as the standby, and an old Redis primary returns as a replica.';
+    tl.to(svg,{attr:{viewBox:nodeCam(id)},duration:D(1.4),ease:'power3.inOut'},0);
+    tl.call(()=>{setState(id,'warn');setSub(id,'rejoining…');ring(id,'ok',3,.5);},null,D(1.5));
+    tl.call(()=>{
+      S.down.delete(id);S.failed=null;
+      edges(FAIL[id].edges,null);
+      setState(id,null);setSub(id,N[id].sub0);
+      if(id==='hop'){setState('exec2',null);setSub('exec2',N.exec2.sub0);}
+      if(id==='pga'){setSub('pga','standby · rejoined');setState('pgb',null);E['e-vip-pga'].el.classList.add('off');}
+      if(id==='r1'){setLabel('r1','R1');setState('r4',null);}
+      ring(id,'ok',1);
+    },null,D(3.2));
+    tl.to(svg,{attr:{viewBox:CAM.full},duration:D(2.2),ease:'power3.inOut'},D(3.6));
+    tl.call(fullTraffic,null,D(4.2));
+  }
+];
+function label(id){return{gw1:'Gateway 1',ctrl1:'Controller 1',exec1:'Execution 1',hop:'the hop node',pga:'PostgreSQL A',r1:'Redis P1'}[id];}
+
+/* ---------- failure sim UI ---------- */
+function showResult(id){
+  const box=$('simResult');
+  document.querySelectorAll('[data-fail]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.fail===id?'true':'false'));
+  if(!id){box.innerHTML='<h3>Everything healthy</h3><p>Normal traffic is flowing. Pick a component to fail.</p>';return;}
+  const f=FAIL[id];box.innerHTML=`<h3>${f.title}</h3><p>${f.text}</p><span class="impact">${f.impact}</span>`;
+}
+function simFail(id){
+  if(current!==6)return;
+  if(S.failed===id)return;
+  clearLive();reset();
+  Object.keys(FAIL).forEach(k=>N[k].el.classList.add('failable'));
+  applyFail(id,true);fullTraffic();showResult(id);
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-fail]');if(b){simFail(b.dataset.fail);return;}
+  const n=e.target.closest('.node.failable');if(n){simFail(n.dataset.id);}
+});
+$('restoreBtn').addEventListener('click',()=>{if(current!==6)return;clearLive();reset();Object.keys(FAIL).forEach(k=>N[k].el.classList.add('failable'));fullTraffic();showResult(null);});
+
+/* ---------- Reveal ---------- */
+const dots=$('dots');
+for(let i=0;i<8;i++){const d=document.createElement('button');d.className='dot';d.type='button';d.setAttribute('aria-label','Scene '+(i+1)+': '+TITLES[i]);d.addEventListener('click',()=>Reveal.slide(i));dots.appendChild(d);}
+function updateNav(){
+  [...dots.children].forEach((d,i)=>{d.classList.toggle('on',i===current);if(i===current)d.setAttribute('aria-current','step');else d.removeAttribute('aria-current');});
+  if(window.Reveal&&Reveal.isReady&&Reveal.isReady()){$('prev').disabled=Reveal.isFirstSlide()&&!(Reveal.getIndices().f>-1);$('next').disabled=Reveal.isLastSlide();}
+}
+$('prev').addEventListener('click',()=>Reveal.prev());
+$('next').addEventListener('click',()=>Reveal.next());
+function sync(){const i=Reveal.getIndices();const f=(typeof i.f==='number')?i.f:-1;render(i.h,f+1);}
+Reveal.initialize({embedded:true,disableLayout:true,controls:false,progress:false,hash:false,history:false,center:false,
+  transition:'none',backgroundTransition:'none',keyboard:true,overview:false,help:false,slideNumber:false,viewDistance:9,touch:false,jumpToSlide:false})
+  .then(()=>{sync();});
+Reveal.on('slidechanged',sync);
+Reveal.on('fragmentshown',sync);
+Reveal.on('fragmenthidden',sync);
+})();
+</script>
+</body>
+</html>
